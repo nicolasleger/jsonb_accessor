@@ -15,16 +15,13 @@ module JsonbAccessor
         end
 
         store_key_mapping_method_name = "jsonb_store_key_mapping_for_#{jsonb_attribute}"
-        # Defines methods on the model class
-        class_methods = Module.new do
-          # Allows us to get a mapping of field names to store keys scoped to the column
-          define_method(store_key_mapping_method_name) do
-            superclass_mapping = superclass.try(store_key_mapping_method_name) || {}
-            superclass_mapping.merge(names_and_store_keys)
-          end
+        current_names_and_store_keys = try(store_key_mapping_method_name) || {}
+        define_singleton_method(store_key_mapping_method_name) do
+          superclass_mapping = superclass.try(store_key_mapping_method_name) || {}
+          superclass_mapping.
+            merge(current_names_and_store_keys).
+            merge(names_and_store_keys)
         end
-        # We extend with class methods here so we can use the results of methods it defines to define more useful methods later
-        extend class_methods
 
         # Get field names to default values mapping
         names_and_defaults = field_types.each_with_object({}) do |(name, type), mapping|
@@ -38,11 +35,12 @@ module JsonbAccessor
 
         # Define jsonb_defaults_mapping_for_<jsonb_attribute>
         defaults_mapping_method_name = "jsonb_defaults_mapping_for_#{jsonb_attribute}"
-        class_methods.instance_eval do
-          define_method(defaults_mapping_method_name) do
-            superclass_mapping = superclass.try(defaults_mapping_method_name) || {}
-            superclass_mapping.merge(store_keys_and_defaults)
-          end
+        current_defaults_mapping_method_name = try(defaults_mapping_method_name) || {}
+        define_singleton_method(defaults_mapping_method_name) do
+          superclass_mapping = superclass.try(defaults_mapping_method_name) || {}
+          superclass_mapping.
+            merge(current_defaults_mapping_method_name).
+            merge(store_keys_and_defaults)
         end
 
         all_defaults_mapping = public_send(defaults_mapping_method_name)
